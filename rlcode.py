@@ -18,7 +18,7 @@ print(str(datetime.datetime.now()))
 
 global episode
 episode = 0
-EPISODES = 80000000
+EPISODES = 70000
 
 r_lock = threading.Lock()
 r_sum = 0
@@ -31,12 +31,12 @@ r_done = 0
 # actor and critic network share first hidden layer
 def build_model(state_size, action_size):
     input = Input(shape=state_size)
-    model = Conv2D(filters=64, kernel_size=(4, 4), strides=(2, 2), activation='relu', padding='same',
+    model = Conv2D(filters=32, kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
                    data_format='channels_first')(input)
-    model = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
+    model = Conv2D(filters=32, kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
                    data_format='channels_first')(model)
     conv = Flatten()(model)
-    fc = Dense(512, activation='relu')(conv)
+    fc = Dense(256, activation='relu')(conv)
     policy = Dense(action_size, activation='softmax')(fc)
     value = Dense(1, activation='linear')(fc)
 
@@ -53,9 +53,9 @@ def build_model(state_size, action_size):
 
 
 class A3CAgent:
-    def __init__(self, action_size, alr, clr, act_rho,crit_rho , ae, ce, limit):
+    def __init__(self, action_size, alr, clr, act_rho,crit_rho , ae, ce):
         # environment settings
-        self.state_size = (4,5,5)
+        self.state_size = (4,8,5)
         self.action_size = action_size
 
         self.discount_factor = 0.99
@@ -72,7 +72,6 @@ class A3CAgent:
 
         print("alr clr ar cr ae ce" + str(alr) + " "+ str(clr) + " "+ str(act_rho) + " " + str(crit_rho) + " " + str(ae) + " "+ str(ce) + " ")
 
-        self.limit = limit
         # create model for actor and critic network
         self.actor, self.critic = build_model(self.state_size, self.action_size)
 
@@ -96,15 +95,10 @@ class A3CAgent:
             time.sleep(1)
             agent.start()
 
-        for i in range(self.limit):
-            time.sleep(60)
+        while episode < EPISODES:
+            time.sleep(3)
             #self.save_model("./save_model/breakout_a3c")
 
-        for agent in agents:
-            agent.stop()
-
-        for agent in agents:
-            agent.join()
 
     # make loss function for Policy Gradient
     # [log(action probability) * advantages] will be input for the back prop
@@ -271,8 +265,6 @@ class Agent(threading.Thread):
                     self.avg_loss = 0
                     step = 0
 
-
-
     # In Policy Gradient, Q function is not available.
     # Instead agent uses sample returns for evaluating policy
     def discount_rewards(self, rewards, done):
@@ -302,7 +294,6 @@ class Agent(threading.Thread):
         self.optimizer[1]([states, discounted_rewards])
         self.states, self.actions, self.rewards = [], [], []
 
-
     def update_localmodel(self):
         self.local_actor.set_weights(self.actor.get_weights())
         self.local_critic.set_weights(self.critic.get_weights())
@@ -325,5 +316,11 @@ class Agent(threading.Thread):
 
 
 if __name__ == "__main__":
-    global_agent = A3CAgent(4, 1.5e-4, 1.5e-4, 0.99, 0.99, 0.004, 0.004, 3)
+    global_agent = A3CAgent(4, 0.5e-4, 0.5e-4, 0.99, 0.99, 0.004, 0.004)
+    global_agent.train()
+
+    global_agent = A3CAgent(4, 1.5e-4, 0.5e-4, 0.99, 0.99, 0.004, 0.004)
+    global_agent.train()
+
+    global_agent = A3CAgent(4, 0.25e-4, 0.5e-4, 0.99, 0.99, 0.004, 0.004)
     global_agent.train()
