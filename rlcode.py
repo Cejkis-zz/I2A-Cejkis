@@ -31,12 +31,12 @@ r_done = 0
 # actor and critic network share first hidden layer
 def build_model(state_size, action_size):
     input = Input(shape=state_size)
-    model = Conv2D(filters=64, kernel_size=(4, 4), strides=(2, 2), activation='relu', padding='same',
+    model = Conv2D(filters=32, kernel_size=(4, 4), strides=(2, 2), activation='relu', padding='same',
                    data_format='channels_first')(input)
-    model = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
+    model = Conv2D(filters=32, kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
                    data_format='channels_first')(model)
     conv = Flatten()(model)
-    fc = Dense(512, activation='relu')(conv)
+    fc = Dense(256, activation='relu')(conv)
     policy = Dense(action_size, activation='softmax')(fc)
     value = Dense(1, activation='linear')(fc)
 
@@ -67,8 +67,8 @@ class A3CAgent:
 
         self.act_rho = .99
         self.crit_rho = .99
-        self.act_eps = 0.4
-        self.crit_eps = 0.4
+        self.act_eps = 0.004
+        self.crit_eps = 0.004
 
         #print("alr clr ar cr ae ce" + str(self))
 
@@ -225,7 +225,6 @@ class Agent(threading.Thread):
 
                 # save the sample <s, a, r, s'> to the replay memory
                 self.memory(s, action, reward)
-
 
                 #
                 if self.t >= self.t_max or done:
