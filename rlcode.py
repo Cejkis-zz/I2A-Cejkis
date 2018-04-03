@@ -1,6 +1,6 @@
 
 import time
-import random
+import sys
 import threading
 import numpy as np
 import tensorflow as tf
@@ -18,27 +18,51 @@ print(str(datetime.datetime.now()))
 
 global episode
 episode = 0
-EPISODES = 8000000
-
-
+EPISODES = 80000000
 
 r_lock = threading.Lock()
 r_sum = 0
 r_done = 0
 
-# This is A3C(Asynchronous Advantage Actor Critic) agent(global) for the Cartpole
-# In this example, we use A3C algorithm
+
+# approximate policy and value using Neural Network
+# actor -> state is input and probability of each action is output of network
+# critic -> state is input and value of state is output of network
+# actor and critic network share first hidden layer
+def build_model(state_size, action_size):
+    input = Input(shape=state_size)
+    model = Conv2D(filters=64, kernel_size=(4, 4), strides=(2, 2), activation='relu', padding='same',
+                   data_format='channels_first')(input)
+    model = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
+                   data_format='channels_first')(model)
+    conv = Flatten()(model)
+    fc = Dense(512, activation='relu')(conv)
+    policy = Dense(action_size, activation='softmax')(fc)
+    value = Dense(1, activation='linear')(fc)
+
+    actor = Model(inputs=input, outputs=policy)
+    critic = Model(inputs=input, outputs=value)
+
+    actor._make_predict_function()
+    critic._make_predict_function()
+
+    # actor.summary()
+    # critic.summary()
+
+    return actor, critic
+
+
 class A3CAgent:
-    def __init__(self, action_size):
+    def __init__(self, action_size, actor_lr, critic_lr, act_rho,crit_rho , ae, ce):
         # environment settings
-        self.state_size = (4,8,5)
+        self.state_size = (4,5,5)
         self.action_size = action_size
 
         self.discount_factor = 0.99
 
         # optimizer parameters
-        self.actor_lr = 1.5e-4
-        self.critic_lr = 1.5e-4
+        self.actor_lr = 0.5e-4
+        self.critic_lr = 0.5e-4
         self.threads = 16
 
         self.act_rho = .99
@@ -46,8 +70,10 @@ class A3CAgent:
         self.act_eps = 0.4
         self.crit_eps = 0.4
 
+        #print("alr clr ar cr ae ce" + str(self))
+
         # create model for actor and critic network
-        self.actor, self.critic = self.build_model()
+        self.actor, self.critic = build_model(self.state_size, self.action_size)
 
         # method for training actor and critic network
         self.optimizer = [self.actor_optimizer(), self.critic_optimizer()]
@@ -72,32 +98,6 @@ class A3CAgent:
         while True:
             time.sleep(60*10)
             #self.save_model("./save_model/breakout_a3c")
-
-    # approximate policy and value using Neural Network
-    # actor -> state is input and probability of each action is output of network
-    # critic -> state is input and value of state is output of network
-    # actor and critic network share first hidden layer
-    def build_model(self):
-        input = Input(shape=self.state_size)
-        model = Conv2D(filters=64, kernel_size=(4, 4), strides=(2,2), activation='relu', padding='same',
-                       data_format='channels_first')(input)
-        model = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
-                       data_format='channels_first')(model)
-        conv = Flatten()(model)
-        fc = Dense(512, activation='relu')(conv)
-        policy = Dense(self.action_size, activation='softmax')(fc)
-        value = Dense(1, activation='linear')(fc)
-
-        actor = Model(inputs=input, outputs=policy)
-        critic = Model(inputs=input, outputs=value)
-
-        actor._make_predict_function()
-        critic._make_predict_function()
-
-        #actor.summary()
-        #critic.summary()
-
-        return actor, critic
 
     # make loss function for Policy Gradient
     # [log(action probability) * advantages] will be input for the back prop
@@ -174,7 +174,10 @@ class Agent(threading.Thread):
 
         self.states, self.actions, self.rewards = [],[],[]
 
-        self.local_actor, self.local_critic = self.build_localmodel()
+        self.local_actor, self.local_critic = build_model(self.state_size, self.action_size)
+
+        self.local_actor.set_weights(self.actor.get_weights())
+        self.local_critic.set_weights(self.critic.get_weights())
 
         self.avg_p_max = 0
         self.avg_loss = 0
@@ -279,7 +282,7 @@ class Agent(threading.Thread):
     def train_model(self, done):
         discounted_rewards = self.discount_rewards(self.rewards, done)
 
-        states = np.zeros((len(self.states),4,8,5))
+        states = np.zeros((len(self.states),*self.state_size))
         for i in range(len(self.states)):
             states[i] = self.states[i]
 
@@ -292,30 +295,6 @@ class Agent(threading.Thread):
         self.optimizer[1]([states, discounted_rewards])
         self.states, self.actions, self.rewards = [], [], []
 
-    def build_localmodel(self):
-        input = Input(shape=self.state_size)
-        model = Conv2D(filters=64, kernel_size=(4, 4), strides=(2,2), activation='relu', padding='same',
-                       data_format='channels_first')(input)
-        model = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
-                       data_format='channels_first')(model)
-        conv = Flatten()(model)
-        fc = Dense(512, activation='relu')(conv)
-        policy = Dense(self.action_size, activation='softmax')(fc)
-        value = Dense(1, activation='linear')(fc)
-
-        actor = Model(inputs=input, outputs=policy)
-        critic = Model(inputs=input, outputs=value)
-
-        actor._make_predict_function()
-        critic._make_predict_function()
-
-        actor.set_weights(self.actor.get_weights())
-        critic.set_weights(self.critic.get_weights())
-
-        #actor.summary()
-        #critic.summary()
-
-        return actor, critic
 
     def update_localmodel(self):
         self.local_actor.set_weights(self.actor.get_weights())
@@ -339,5 +318,5 @@ class Agent(threading.Thread):
 
 
 if __name__ == "__main__":
-    global_agent = A3CAgent(action_size=4)
+    global_agent = A3CAgent(4,1.5e-4,1.5e-4, 0.99 ,0.99,0.4,0.4)
     global_agent.train()
