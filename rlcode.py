@@ -53,7 +53,7 @@ def build_model(state_size, action_size):
 
 
 class A3CAgent:
-    def __init__(self, action_size, actor_lr, critic_lr, act_rho,crit_rho , ae, ce):
+    def __init__(self, action_size, alr, clr, act_rho,crit_rho , ae, ce, limit):
         # environment settings
         self.state_size = (4,5,5)
         self.action_size = action_size
@@ -61,17 +61,18 @@ class A3CAgent:
         self.discount_factor = 0.99
 
         # optimizer parameters
-        self.actor_lr = 0.5e-4
-        self.critic_lr = 0.5e-4
+        self.actor_lr = alr
+        self.critic_lr = clr
         self.threads = 16
 
-        self.act_rho = .99
-        self.crit_rho = .99
-        self.act_eps = 0.4
-        self.crit_eps = 0.4
+        self.act_rho = act_rho
+        self.crit_rho = crit_rho
+        self.act_eps = ae
+        self.crit_eps = ce
 
-        #print("alr clr ar cr ae ce" + str(self))
+        print("alr clr ar cr ae ce" + str(alr) + " "+ str(clr) + " "+ str(act_rho) + " " + str(crit_rho) + " " + str(ae) + " "+ str(ce) + " ")
 
+        self.limit = limit
         # create model for actor and critic network
         self.actor, self.critic = build_model(self.state_size, self.action_size)
 
@@ -95,9 +96,15 @@ class A3CAgent:
             time.sleep(1)
             agent.start()
 
-        while True:
-            time.sleep(60*10)
+        for i in range(self.limit):
+            time.sleep(60)
             #self.save_model("./save_model/breakout_a3c")
+
+        for agent in agents:
+            agent.stop()
+
+        for agent in agents:
+            agent.join()
 
     # make loss function for Policy Gradient
     # [log(action probability) * advantages] will be input for the back prop
@@ -318,5 +325,5 @@ class Agent(threading.Thread):
 
 
 if __name__ == "__main__":
-    global_agent = A3CAgent(4,1.5e-4,1.5e-4, 0.99 ,0.99,0.4,0.4)
+    global_agent = A3CAgent(4, 1.5e-4, 1.5e-4, 0.99, 0.99, 0.004, 0.004, 3)
     global_agent.train()
