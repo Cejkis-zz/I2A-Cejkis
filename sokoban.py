@@ -4,7 +4,7 @@ import random
 
 
 MAX_MOVES = 50
-MAPS = 167000
+MAPS = 100000
 
 actions = ((-1,0),(1,0),(0,-1),(0,1))
 
@@ -23,7 +23,7 @@ class Sokoban:
         mapNr = random.randint(0, MAPS-1)
         #print(mapNr)
 
-        with open("/home/cejkis/SokoGen/sokohard/levels121/output" + str(mapNr) + ".sok") as f:
+        with open("/home/cejkis/SokoGen/sokohard/levels111/output" + str(mapNr) + ".sok") as f:
             mapa = f.readlines()
             map2D = []
             for i in mapa:
