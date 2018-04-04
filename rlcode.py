@@ -86,6 +86,9 @@ class A3CAgent:
         self.summary_writer = tf.summary.FileWriter('summary/breakout_a3c', self.sess.graph)
 
     def train(self):
+
+        episode = 0
+
         # self.load_model("./save_model/breakout_a3c")
         agents = [Agent(self.action_size, self.state_size, [self.actor, self.critic], self.sess, self.optimizer,
                         self.discount_factor, [self.summary_op, self.summary_placeholders,
@@ -316,11 +319,18 @@ class Agent(threading.Thread):
 
 
 if __name__ == "__main__":
-    global_agent = A3CAgent(4, 0.5e-4, 0.5e-4, 0.99, 0.99, 0.004, 0.004)
+
+    # global_agent = A3CAgent(4, 0.05e-4, 0.05e-4, 0.99, 0.99, 0.004, 0.004) # error spadl na -700
+    # global_agent.train()
+
+    EPISODES = 70000
+    global_agent = A3CAgent(4, 0.1e-4, 0.1e-4, 0.99, 0.99, 0.004, 0.004) # zhruba stejny
     global_agent.train()
 
-    global_agent = A3CAgent(4, 1.5e-4, 0.5e-4, 0.99, 0.99, 0.004, 0.004)
-    global_agent.train()
 
-    global_agent = A3CAgent(4, 0.25e-4, 0.5e-4, 0.99, 0.99, 0.004, 0.004)
-    global_agent.train()
+
+    # global_agent = A3CAgent(4, 1.5e-4, 0.5e-4, 0.99, 0.99, 0.004, 0.004) ## vyloženě špatný
+    # global_agent.train()
+
+    # global_agent = A3CAgent(4, 0.25e-4, 0.5e-4, 0.99, 0.99, 0.004, 0.004) # po 10k spadlo
+    # global_agent.train()

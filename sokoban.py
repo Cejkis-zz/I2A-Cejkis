@@ -32,10 +32,19 @@ class Sokoban:
         self.width = len(map2D[0])
         self.height = len(map2D)
 
-        #for i in map2D:
-        #    print(i)
         self.processMap(map2D)
-        #self.printMap()
+
+        # nahodne presun hrace
+        self.map3D[0][self.playerPos[0]][self.playerPos[1]] = 0
+
+        pos = self.playerPos
+        for i in range(20):
+            smer = actions[random.randint(0,3)]
+            newpos = [pos[0] + smer[0], pos[1] + smer[1]]
+            if self.map3D[0][newpos[0]][newpos[1]] == 0 and self.map3D[3][newpos[0]][newpos[1]] == 0:
+                pos = newpos
+        self.playerPos = pos
+        self.map3D[0][self.playerPos[0]][self.playerPos[1]] = 1
 
         return self.map3D
 
@@ -126,7 +135,7 @@ class Sokoban:
             self.playerPos[1] += action[1]
 
         else:
-            reward = -0.01  # negativni odmena za krok do zdi
+            reward = -0.05  # negativni odmena za krok do zdi
 
         done = False
 
