@@ -18,6 +18,7 @@ print(str(datetime.datetime.now()))
 
 global episode
 episode = 0
+
 EPISODES = 70000
 
 r_lock = threading.Lock()
@@ -55,7 +56,7 @@ def build_model(state_size, action_size):
 class A3CAgent:
     def __init__(self, action_size, alr, clr, act_rho,crit_rho , ae, ce):
         # environment settings
-        self.state_size = (4,8,5)
+        self.state_size = (4,5,5)
         self.action_size = action_size
 
         self.discount_factor = 0.99
@@ -70,7 +71,7 @@ class A3CAgent:
         self.act_eps = ae
         self.crit_eps = ce
 
-        print("alr clr ar cr ae ce" + str(alr) + " "+ str(clr) + " "+ str(act_rho) + " " + str(crit_rho) + " " + str(ae) + " "+ str(ce) + " ")
+        print("alr clr ar cr ae ce " + str(alr) + " "+ str(clr) + " "+ str(act_rho) + " " + str(crit_rho) + " " + str(ae) + " "+ str(ce) + " ")
 
         # create model for actor and critic network
         self.actor, self.critic = build_model(self.state_size, self.action_size)
@@ -87,6 +88,7 @@ class A3CAgent:
 
     def train(self):
 
+        global episode
         episode = 0
 
         # self.load_model("./save_model/breakout_a3c")
@@ -246,7 +248,7 @@ class Agent(threading.Thread):
 
                         r_sum += score
 
-                        if(reward>=0.5):
+                        if(reward >= 0.5):
                             r_done +=1
 
                         if episode % 500 == 0:
@@ -323,10 +325,14 @@ if __name__ == "__main__":
     # global_agent = A3CAgent(4, 0.05e-4, 0.05e-4, 0.99, 0.99, 0.004, 0.004) # error spadl na -700
     # global_agent.train()
 
-    EPISODES = 70000
-    global_agent = A3CAgent(4, 0.1e-4, 0.1e-4, 0.99, 0.99, 0.004, 0.004) # zhruba stejny
+    #global EPISODES
+
+    EPISODES = 50000
+
+    global_agent = A3CAgent(4, 0.5e-4, 0.5e-4, 0.99, 0.99, 0.001, 0.001) # zhruba stejny
     global_agent.train()
 
+    print("done")
 
 
     # global_agent = A3CAgent(4, 1.5e-4, 0.5e-4, 0.99, 0.99, 0.004, 0.004) ## vyloženě špatný
