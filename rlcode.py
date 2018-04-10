@@ -18,8 +18,7 @@ print(str(datetime.datetime.now()))
 
 global episode
 episode = 0
-
-EPISODES = 250000
+EPISODES = 700000
 
 r_lock = threading.Lock()
 r_sum = 0
@@ -32,10 +31,10 @@ r_done = 0
 # actor and critic network share first hidden layer
 def build_model(state_size, action_size):
     input = Input(shape=state_size)
-    model = Conv2D(filters=32, kernel_size=(4, 4), strides=(2, 2), activation='relu', padding='same',
+    model = Conv2D(filters=32, kernel_size=(4,4), strides=(2,2), activation='relu', padding='same',
                    data_format='channels_first')(input)
     model = Conv2D(filters=32, kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
-                   data_format='channels_first')(model)
+                     data_format='channels_first')(model)
     conv = Flatten()(model)
     fc = Dense(256, activation='relu')(conv)
     policy = Dense(action_size, activation='softmax')(fc)
@@ -56,7 +55,7 @@ def build_model(state_size, action_size):
 class A3CAgent:
     def __init__(self, action_size, alr, clr, act_rho,crit_rho , ae, ce):
         # environment settings
-        self.state_size = (4,5,5)
+        self.state_size = (4,8,5)
         self.action_size = action_size
 
         self.discount_factor = 0.99
@@ -71,7 +70,7 @@ class A3CAgent:
         self.act_eps = ae
         self.crit_eps = ce
 
-        print("alr clr ar cr ae ce " + str(alr) + " "+ str(clr) + " "+ str(act_rho) + " " + str(crit_rho) + " " + str(ae) + " "+ str(ce) + " ")
+        print("alr clr ar cr ae ce" + str(alr) + " "+ str(clr) + " "+ str(act_rho) + " " + str(crit_rho) + " " + str(ae) + " "+ str(ce) + " ")
 
         # create model for actor and critic network
         self.actor, self.critic = build_model(self.state_size, self.action_size)
@@ -248,7 +247,7 @@ class Agent(threading.Thread):
 
                         r_sum += score
 
-                        if(reward >= 0.5):
+                        if(reward>=0.5):
                             r_done +=1
 
                         if episode % 500 == 0:
@@ -322,8 +321,17 @@ class Agent(threading.Thread):
 
 if __name__ == "__main__":
 
+    # global_agent = A3CAgent(4, 0.05e-4, 0.05e-4, 0.99, 0.99, 0.004, 0.004) # error spadl na -700
+    # global_agent.train()
 
-
-    global_agent = A3CAgent(4, 10e-5, 10e-5, 0.99, 0.99, 0.0000004, 0.0000004)  # spadlo hned
+    EPISODES = 70000
+    global_agent = A3CAgent(4, 0.1e-4, 0.1e-4, 0.99, 0.99, 0.004, 0.004) # zhruba stejny
     global_agent.train()
 
+
+
+    # global_agent = A3CAgent(4, 1.5e-4, 0.5e-4, 0.99, 0.99, 0.004, 0.004) ## vyloženě špatný
+    # global_agent.train()
+
+    # global_agent = A3CAgent(4, 0.25e-4, 0.5e-4, 0.99, 0.99, 0.004, 0.004) # po 10k spadlo
+    # global_agent.train()
