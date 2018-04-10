@@ -3,8 +3,27 @@ from numpy import zeros
 import random
 
 
-MAX_MOVES = 50
-MAPS = 160000
+MAPSIZE = 123
+
+if MAPSIZE == 121:
+    STATE_SIZE = (4, 8, 5)
+    MAX_MOVES = 80
+    MAPS = 160000
+
+if MAPSIZE == 122:
+    STATE_SIZE = (4, 8, 5)
+    MAX_MOVES = 80
+    MAPS = 75000
+
+if MAPSIZE == 123: # bez --changes
+    STATE_SIZE = (4, 8, 5)
+    MAX_MOVES = 80
+    MAPS = 48000
+
+if MAPSIZE == 111:
+    STATE_SIZE = (4,5,5)
+    MAX_MOVES = 50
+    MAPS = 100000
 
 actions = ((-1,0),(1,0),(0,-1),(0,1))
 
@@ -23,7 +42,7 @@ class Sokoban:
         mapNr = random.randint(0, MAPS-1)
         #print(mapNr)
 
-        with open("/home/cejkis/PycharmProjects/I2A-Cejkis/levels1/levels121/output" + str(mapNr) + ".sok") as f:
+        with open("/home/cejkis/PycharmProjects/I2A-Cejkis/levels1/levels" + str(MAPSIZE) + "/output" + str(mapNr) + ".sok") as f:
             mapa = f.readlines()
             map2D = []
             for i in mapa:
@@ -88,12 +107,16 @@ class Sokoban:
                     hrac = [i, j]
                     mapa[2][i][j] = 1
                     nrCilu += 1
+                elif mapa2[i][j] == "*":  # kamen + cil
+                    mapa[1][i][j] = 1
+                    mapa[2][i][j] = 1
+                    nrCilu += 1
         self.map3D = mapa
         self.playerPos = hrac
         self.nrCilu = nrCilu
 
     def newImagination(self):
-        self.imagMap = map    # todo kopiruje tohle? a zkopiruj i pocet splnenych cihel
+        self.imagMap = MAPSIZE    # todo kopiruje tohle? a zkopiruj i pocet splnenych cihel
 
     def doImaginaryAction(self, action):
         self.doAction(self.imagMap, action)
@@ -135,7 +158,7 @@ class Sokoban:
             self.playerPos[1] += action[1]
 
         else:
-            reward = -0.05  # negativni odmena za krok do zdi
+            reward = -0.01  # negativni odmena za krok do zdi
 
         done = False
 
@@ -144,7 +167,7 @@ class Sokoban:
                 reward += -0.1
                 self.nrFinished -= 1
             if map[2][newBrickPos[0]][newBrickPos[1]]: # posunul jsem na cil
-                reward += 0.
+                reward += 0.1
                 self.nrFinished += 1
                 if self.nrCilu == self.nrFinished:
                     reward += 1
