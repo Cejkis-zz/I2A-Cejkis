@@ -19,7 +19,7 @@ print(str(datetime.datetime.now()))
 global episode
 episode = 0
 
-EPISODES = 70000
+EPISODES = 250000
 
 r_lock = threading.Lock()
 r_sum = 0
@@ -32,7 +32,7 @@ r_done = 0
 # actor and critic network share first hidden layer
 def build_model(state_size, action_size):
     input = Input(shape=state_size)
-    model = Conv2D(filters=32, kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
+    model = Conv2D(filters=32, kernel_size=(4, 4), strides=(2, 2), activation='relu', padding='same',
                    data_format='channels_first')(input)
     model = Conv2D(filters=32, kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
                    data_format='channels_first')(model)
@@ -322,21 +322,8 @@ class Agent(threading.Thread):
 
 if __name__ == "__main__":
 
-    # global_agent = A3CAgent(4, 0.05e-4, 0.05e-4, 0.99, 0.99, 0.004, 0.004) # error spadl na -700
-    # global_agent.train()
 
-    #global EPISODES
 
-    EPISODES = 50000
-
-    global_agent = A3CAgent(4, 0.5e-4, 0.5e-4, 0.99, 0.99, 0.001, 0.001) # zhruba stejny
+    global_agent = A3CAgent(4, 10e-5, 10e-5, 0.99, 0.99, 0.0000004, 0.0000004)  # spadlo hned
     global_agent.train()
 
-    print("done")
-
-
-    # global_agent = A3CAgent(4, 1.5e-4, 0.5e-4, 0.99, 0.99, 0.004, 0.004) ## vyloženě špatný
-    # global_agent.train()
-
-    # global_agent = A3CAgent(4, 0.25e-4, 0.5e-4, 0.99, 0.99, 0.004, 0.004) # po 10k spadlo
-    # global_agent.train()

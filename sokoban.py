@@ -3,8 +3,8 @@ from numpy import zeros
 import random
 
 
-MAX_MOVES = 50
-MAPS = 160000
+MAX_MOVES = 80
+MAPS = 100000
 
 actions = ((-1,0),(1,0),(0,-1),(0,1))
 
@@ -23,7 +23,7 @@ class Sokoban:
         mapNr = random.randint(0, MAPS-1)
         #print(mapNr)
 
-        with open("/home/cejkis/PycharmProjects/I2A-Cejkis/levels1/levels121/output" + str(mapNr) + ".sok") as f:
+        with open("/home/cejkis/SokoGen/sokohard/levels111/output" + str(mapNr) + ".sok") as f:
             mapa = f.readlines()
             map2D = []
             for i in mapa:
@@ -135,7 +135,7 @@ class Sokoban:
             self.playerPos[1] += action[1]
 
         else:
-            reward = -0.05  # negativni odmena za krok do zdi
+            reward = -0.01  # negativni odmena za krok do zdi
 
         done = False
 
@@ -144,7 +144,7 @@ class Sokoban:
                 reward += -0.1
                 self.nrFinished -= 1
             if map[2][newBrickPos[0]][newBrickPos[1]]: # posunul jsem na cil
-                reward += 0.
+                reward += 0.1
                 self.nrFinished += 1
                 if self.nrCilu == self.nrFinished:
                     reward += 1
