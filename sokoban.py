@@ -1,6 +1,8 @@
 
 from numpy import zeros
+import numpy as np
 import random
+from Mapa import Mapa
 
 sizes = [111,121,122,1229,1239]
 STATE_SIZE = (4, 8, 5)
@@ -28,8 +30,6 @@ def decideParameters(MAPSIZE = 1239):
 
     return STATE_SIZE,MAX_MOVES,MAPS
 
-
-
 actions = ((-1,0),(1,0),(0,-1),(0,1))
 
 class Sokoban:
@@ -46,7 +46,7 @@ class Sokoban:
             MAPSIZE = 111
         else:
             self.small = True
-            MAPSIZE = 121
+            MAPSIZE = 1229
             
         self.STATE_SIZE, self.MAX_MOVES, self.MAPS = decideParameters(MAPSIZE)
         
@@ -59,10 +59,7 @@ class Sokoban:
             for i in mapa:
                 map2D.append(i[:len(i) - 1])
 
-        self.width = 5 #len(map2D[0])
-        self.height = 8 # len(map2D)
-
-        self.processMap(map2D)
+        self.map3D = Mapa(map2D, 5, 8)
 
         # nahodne presun hrace
         self.map3D[0][self.playerPos[0]][self.playerPos[1]] = 0
@@ -78,59 +75,12 @@ class Sokoban:
 
         return self.map3D
 
-    def printMap(self):
-        for i in range(self.height):
-            for j in range(self.width):
-                if self.map3D[3][i][j] == 1: # zed
-                    print('#',end='')
-                elif self.map3D[1][i][j] == 1: # kameny
-                    print('$',end='')
-                elif self.map3D[2][i][j] == 1: # cile
-                    if self.map3D[0][i][j] == 1:
-                        print('+',end='')
-                    else:
-                        print('.',end='')
-                elif self.map3D[0][i][j] == 1: # hrac
-                    print('@',end='')
-                else:
-                    print(' ', end='')
-            print('\n', end = '')
-
-    def processMap(self, mapa2):  # 0: hrac, 1:kameny, 2:cile 3:zed
-        mapa = zeros((4, self.height, self.width))
-        nrCilu = 0
-        self.nrFinished = 0
-
-        for i in range(len(mapa2)):
-            for j in range(len(mapa2[0])):
-                if mapa2[i][j] == "#": # zed
-                    mapa[3][i][j] = 1
-                elif mapa2[i][j] == "$": # kameny
-                    mapa[1][i][j] = 1
-                elif mapa2[i][j] == ".": # cile
-                    mapa[2][i][j] = 1
-                    nrCilu +=1
-                elif mapa2[i][j] == "@": # hrac
-                    mapa[0][i][j] = 1
-                    hrac = [i, j]
-                elif mapa2[i][j] == "+": # hrac + cil
-                    mapa[0][i][j] = 1
-                    hrac = [i, j]
-                    mapa[2][i][j] = 1
-                    nrCilu += 1
-                elif mapa2[i][j] == "*":  # kamen + cil
-                    mapa[1][i][j] = 1
-                    mapa[2][i][j] = 1
-                    nrCilu += 1
-        self.map3D = mapa
-        self.playerPos = hrac
-        self.nrCilu = nrCilu
 
     def newImagination(self):
-        self.imagMap = map    # todo kopiruje tohle? a zkopiruj i pocet splnenych cihel
+        self.imagMap = np.copy(map)    # todo kopiruje tohle? a zkopiruj i pocet splnenych cihel
 
     def doImaginaryAction(self, action):
-        self.doAction(self.imagMap, action)
+        return self.doAction(self.imagMap, action)
 
     def step(self, action):
         self.moves += 1
@@ -168,9 +118,6 @@ class Sokoban:
             self.playerPos[0] += action[0]
             self.playerPos[1] += action[1]
 
-        else:
-            reward = -0.01  # negativni odmena za krok do zdi
-
         done = False
 
         if movedbrick:
@@ -178,7 +125,7 @@ class Sokoban:
                 reward += -0.1
                 self.nrFinished -= 1
             if map[2][newBrickPos[0]][newBrickPos[1]]: # posunul jsem na cil
-                reward += 0.
+                reward += 0.1
                 self.nrFinished += 1
                 if self.nrCilu == self.nrFinished:
                     reward += 1
