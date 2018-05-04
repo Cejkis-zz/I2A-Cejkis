@@ -1,6 +1,4 @@
-
 import time
-import sys
 import threading
 import numpy as np
 import tensorflow as tf
@@ -9,34 +7,30 @@ from keras.optimizers import RMSprop
 from keras.layers import Dense, Flatten, Input
 from keras.layers.convolutional import Conv2D
 from keras import backend as K
-
-# global variables for A3C
 import sokoban
 import datetime
 
 print(str(datetime.datetime.now()))
 
-global episode
 episode = 0
-EPISODES = 700000
 
 r_lock = threading.Lock()
 r_sum = 0
 r_done = 0
-
+r_done2 = 0
 
 # approximate policy and value using Neural Network
 # actor -> state is input and probability of each action is output of network
 # critic -> state is input and value of state is output of network
 # actor and critic network share first hidden layer
-def build_model(state_size, action_size):
+def build_model(state_size, action_size, network):
     input = Input(shape=state_size)
-    model = Conv2D(filters=32, kernel_size=(4,4), strides=(2,2), activation='relu', padding='same',
-                   data_format='channels_first')(input)
-    model = Conv2D(filters=32, kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
-                     data_format='channels_first')(model)
+    model = Conv2D(filters= network[0], kernel_size=(4, 4), strides=(2,2), activation='relu', padding='same',
+                    data_format='channels_first')(input)
+    model = Conv2D(filters= network[1], kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
+                   data_format='channels_first')(model)
     conv = Flatten()(model)
-    fc = Dense(256, activation='relu')(conv)
+    fc = Dense(network[2], activation='relu')(conv)
     policy = Dense(action_size, activation='softmax')(fc)
     value = Dense(1, activation='linear')(fc)
 
@@ -53,10 +47,10 @@ def build_model(state_size, action_size):
 
 
 class A3CAgent:
-    def __init__(self, action_size, alr, clr, act_rho,crit_rho , ae, ce):
+    def __init__(self, alr, clr, act_rho,crit_rho , ae, ce, network):
         # environment settings
         self.state_size = sokoban.STATE_SIZE
-        self.action_size = action_size
+        self.action_size = 4
 
         self.discount_factor = 0.99
 
@@ -70,10 +64,12 @@ class A3CAgent:
         self.act_eps = ae
         self.crit_eps = ce
 
+        self.network = network
+
         print("alr clr ar cr ae ce " + str(alr) + " "+ str(clr) + " "+ str(act_rho) + " " + str(crit_rho) + " " + str(ae) + " "+ str(ce) + " ")
 
         # create model for actor and critic network
-        self.actor, self.critic = build_model(self.state_size, self.action_size)
+        self.actor, self.critic = build_model(self.state_size, self.action_size, self.network)
 
         # method for training actor and critic network
         self.optimizer = [self.actor_optimizer(), self.critic_optimizer()]
@@ -88,12 +84,13 @@ class A3CAgent:
     def train(self):
 
         global episode
-        episode = 0
 
-        # self.load_model("./save_model/breakout_a3c")
-        agents = [Agent(self.action_size, self.state_size, [self.actor, self.critic], self.sess, self.optimizer,
-                        self.discount_factor, [self.summary_op, self.summary_placeholders,
-                        self.update_ops, self.summary_writer]) for _ in range(self.threads)]
+        global weights
+        if weights != "":
+            self.load_model(weights)
+
+        agents = [Agent(self, self.action_size, self.state_size, [self.actor, self.critic], self.sess, self.optimizer,
+                        self.discount_factor, self.network) for _ in range(self.threads)]
 
         for agent in agents:
             time.sleep(1)
@@ -166,7 +163,7 @@ class A3CAgent:
 
 # make agents(local) and start training
 class Agent(threading.Thread):
-    def __init__(self, action_size, state_size, model, sess, optimizer, discount_factor, summary_ops):
+    def __init__(self, a3c, action_size, state_size, model, sess, optimizer, discount_factor, network):
         threading.Thread.__init__(self)
 
         self.action_size = action_size
@@ -175,11 +172,11 @@ class Agent(threading.Thread):
         self.sess = sess
         self.optimizer = optimizer
         self.discount_factor = discount_factor
-        self.summary_op, self.summary_placeholders, self.update_ops, self.summary_writer = summary_ops
+        self.a3c = a3c
 
         self.states, self.actions, self.rewards = [],[],[]
 
-        self.local_actor, self.local_critic = build_model(self.state_size, self.action_size)
+        self.local_actor, self.local_critic = build_model(self.state_size, self.action_size, network)
 
         self.local_actor.set_weights(self.actor.get_weights())
         self.local_critic.set_weights(self.critic.get_weights())
@@ -188,86 +185,81 @@ class Agent(threading.Thread):
         self.avg_loss = 0
 
         # t_max -> max batch size for training
-        self.t_max = 1
+        self.t_max = 20
         self.t = 0
 
     # Thread interactive with environment
     def run(self):
-        # self.load_model('./save_model/breakout_a3c')
-        global episode
+
+        global weights
+        if weights != "":
+            self.a3c.load_model(weights)
+
+        global episode, network, r_sum, r_done, r_done2
 
         env = sokoban.Sokoban()
 
-        step = 0
+        small = True
 
         while episode < EPISODES:
             done = False
 
-            # 1 episode = 5 lives
             score = 0
             s_ = env.reset()
 
-            # At start of episode, there is no preceding frame. So just copy initial states to make history
-
-            act_his = []
-
             while not done:
-                step += 1
                 self.t += 1
+
                 s = np.float32([s_])
-
-                # get action for the current history and go one step in environment
                 action, policy = self.get_action(s)
-                # change action to real_action
-                act_his += [action]
-                s_, reward, done = env.step(action)
-                # pre-process the observation --> history
 
-                self.avg_p_max += np.amax(self.actor.predict(np.float32(s))) # todo s_ ???
+                s_, reward, done = env.step(action)
 
                 score += reward
-                reward = np.clip(reward, -1., 1.) # todo
+                reward = np.clip(reward, -1., 1.) # not necessary
 
                 # save the sample <s, a, r, s'> to the replay memory
                 self.memory(s, action, reward)
 
-
-                #
                 if self.t >= self.t_max or done:
                     self.train_model(done)
                     self.update_localmodel()
                     self.t = 0
 
-                # if done, plot the score over episodes
                 if done:
-                    with r_lock:  # můj kód
+                    with r_lock:  # store score, print average, save weights
                         episode += 1
-
-                        global r_sum, r_done
 
                         r_sum += score
 
-                        if(reward>=0.5):
-                            r_done +=1
+                        if reward > 0.5:
+                            if small:
+                                r_done += 1
+                            else:
+                                r_done2 += 1
 
                         if episode % 500 == 0:
-                            print(str(datetime.datetime.now()) + " " + str(episode) + " %.3f" % round(r_sum / 500.0, 3) + " %.3f" % round(r_done / 500.0, 3))
+
+                            avg_done = round(r_done / 250.0, 3)
+                            avg_done2 = round(r_done2 / 250.0, 3)
+
+                            print(str(datetime.datetime.now()) + " " + str(episode) +
+                                  " %.3f" % round(r_sum / 500.0, 3) +
+                                  " %.3f" % avg_done + " %.3f" % avg_done2)
+
                             r_sum = 0
                             r_done = 0
+                            r_done2 = 0
 
-                    #print("episode:", episode, "  score:", score, "  step:", step, " path:", act_his )
-
-                    stats = [score, self.avg_p_max / float(step),
-                             step]
-                    for i in range(len(stats)):
-                        self.sess.run(self.update_ops[i], feed_dict={
-                            self.summary_placeholders[i]: float(stats[i])
-                        })
-                    summary_str = self.sess.run(self.summary_op)
-                    self.summary_writer.add_summary(summary_str, episode + 1)
-                    self.avg_p_max = 0
-                    self.avg_loss = 0
-                    step = 0
+                            global r_lastScore
+                            if r_lastScore <= avg_done2:
+                                r_lastScore = avg_done2
+                                self.a3c.save_model("weights" + str(network[0]) + str(network[1]) + str(network[2]) + "/"
+                                                    + str(episode) + " " + str(avg_done2))
+                    if small: # swapping map sizes
+                        small = False
+                    else:
+                        small = True
 
     # In Policy Gradient, Q function is not available.
     # Instead agent uses sample returns for evaluating policy
@@ -318,21 +310,17 @@ class Agent(threading.Thread):
         self.actions.append(act)
         self.rewards.append(reward)
 
-
 if __name__ == "__main__":
 
-    # global_agent = A3CAgent(4, 0.05e-4, 0.05e-4, 0.99, 0.99, 0.004, 0.004) # reward spadl na -0.700
-    # global_agent.train()
+    network = [32, 32, 256] # nr of filters, nr of filters, size of FC layer
+    EPISODES = 700000
 
+    r_lastScore = 0.0
+    episode = 0
+    weights = ""
 
-    #global_agent = A3CAgent(4, 0.1e-4, 0.1e-4, 0.99, 0.99, 0.004, 0.004) # klesa, na 18k spadl
+    # to load weights
+    # weights = "weights" + str(network[0]) + str(network[1]) + str(network[2]) + "/" + str(episode) + " " + str(r_lastScore)
 
-
-    global_agent = A3CAgent(4, 0.5e-5, 0.5e-5, 0.99, 0.99, 0.00004, 0.00004)
+    global_agent = A3CAgent(4e-5, 4e-5, 0.9, 0.9, 1e-5, 1e-5, network) # LR, LR, rho, rho, epsilon, epsilon
     global_agent.train()
-
-    # global_agent = A3CAgent(4, 1.5e-4, 0.5e-4, 0.99, 0.99, 0.004, 0.004) ## vyloženě špatný
-    # global_agent.train()
-
-    # global_agent = A3CAgent(4, 0.25e-4, 0.5e-4, 0.99, 0.99, 0.004, 0.004) # po 10k spadlo
-    # global_agent.train()

@@ -1,136 +1,89 @@
+import copy
 
 from numpy import zeros
+import numpy as np
 import random
+from Mapa import Mapa
 
+sizes = [111,121,122,1229,1239]
+STATE_SIZE = (4, 8, 5)
 
-MAPSIZE = 123
-
-if MAPSIZE == 121:
+def decideParameters(MAPSIZE = 1239):
     STATE_SIZE = (4, 8, 5)
-    MAX_MOVES = 80
-    MAPS = 160000
+    MAX_MOVES = 120
 
-if MAPSIZE == 122:
-    STATE_SIZE = (4, 8, 5)
-    MAX_MOVES = 80
-    MAPS = 75000
+    if MAPSIZE == 121:
+        MAPS = 160000
 
-if MAPSIZE == 123: # bez --changes
-    STATE_SIZE = (4, 8, 5)
-    MAX_MOVES = 80
-    MAPS = 48000
+    if MAPSIZE == 122:
+        MAPS = 75000
 
-if MAPSIZE == 111:
-    STATE_SIZE = (4,5,5)
-    MAX_MOVES = 50
-    MAPS = 100000
+    if MAPSIZE == 1229: # bez --changes
+        MAPS = 50000
+
+    if MAPSIZE == 1239: # bez --changes
+        MAPS = 64000
+
+    if MAPSIZE == 111:
+        STATE_SIZE = (4,5,5)
+        MAX_MOVES = 50
+        MAPS = 100000
+
+    return STATE_SIZE,MAX_MOVES,MAPS
 
 actions = ((-1,0),(1,0),(0,-1),(0,1))
 
 class Sokoban:
 
-    class dummy:
-        def __init__(self):
-            self.n = 4
-
     def __init__(self):
-        self.map3D = self.reset()
+        self.small = True
+        self.reset()
 
     def reset(self):
         self.moves = 0
-
-        mapNr = random.randint(0, MAPS-1)
+        
+        if self.small:
+            self.small = False
+            MAPSIZE = 111
+        else:
+            self.small = True
+            MAPSIZE = 111
+            
+        self.STATE_SIZE, self.MAX_MOVES, self.MAPS = decideParameters(MAPSIZE)
+        
+        mapNr = random.randint(0, self.MAPS-1)
         #print(mapNr)
 
-        with open("/home/cejkis/PycharmProjects/I2A-Cejkis/levels1/levels" + str(MAPSIZE) + "/output" + str(mapNr) + ".sok") as f:
+        with open("/home/cejkis/SokoGen/sokohard/levels" + str(MAPSIZE) + "/output" + str(mapNr) + ".sok") as f:
             mapa = f.readlines()
+
             map2D = []
             for i in mapa:
+                #print(i, end="")
                 map2D.append(i[:len(i) - 1])
+            #print()
 
-        self.width = len(map2D[0])
-        self.height = len(map2D)
+        self.mapaObjekt = Mapa(map2D, 8, 5)
 
-        self.processMap(map2D)
+        return self.mapaObjekt.map3D
 
-        # nahodne presun hrace
-        self.map3D[0][self.playerPos[0]][self.playerPos[1]] = 0
-
-        pos = self.playerPos
-        for i in range(20):
-            smer = actions[random.randint(0,3)]
-            newpos = [pos[0] + smer[0], pos[1] + smer[1]]
-            if self.map3D[0][newpos[0]][newpos[1]] == 0 and self.map3D[3][newpos[0]][newpos[1]] == 0:
-                pos = newpos
-        self.playerPos = pos
-        self.map3D[0][self.playerPos[0]][self.playerPos[1]] = 1
-
-        return self.map3D
-
-    def printMap(self):
-        for i in range(self.height):
-            for j in range(self.width):
-                if self.map3D[3][i][j] == 1: # zed
-                    print('#',end='')
-                elif self.map3D[1][i][j] == 1: # kameny
-                    print('$',end='')
-                elif self.map3D[2][i][j] == 1: # cile
-                    if self.map3D[0][i][j] == 1:
-                        print('+',end='')
-                    else:
-                        print('.',end='')
-                elif self.map3D[0][i][j] == 1: # hrac
-                    print('@',end='')
-                else:
-                    print(' ', end='')
-            print('\n', end = '')
-
-    def processMap(self, mapa2):  # 0: hrac, 1:kameny, 2:cile 3:zed
-        mapa = zeros((4, self.height, self.width))
-        nrCilu = 0
-        self.nrFinished = 0
-
-        for i in range(self.height):
-            for j in range(self.width):
-                if mapa2[i][j] == "#": # zed
-                    mapa[3][i][j] = 1
-                elif mapa2[i][j] == "$": # kameny
-                    mapa[1][i][j] = 1
-                elif mapa2[i][j] == ".": # cile
-                    mapa[2][i][j] = 1
-                    nrCilu +=1
-                elif mapa2[i][j] == "@": # hrac
-                    mapa[0][i][j] = 1
-                    hrac = [i, j]
-                elif mapa2[i][j] == "+": # hrac + cil
-                    mapa[0][i][j] = 1
-                    hrac = [i, j]
-                    mapa[2][i][j] = 1
-                    nrCilu += 1
-                elif mapa2[i][j] == "*":  # kamen + cil
-                    mapa[1][i][j] = 1
-                    mapa[2][i][j] = 1
-                    nrCilu += 1
-        self.map3D = mapa
-        self.playerPos = hrac
-        self.nrCilu = nrCilu
 
     def newImagination(self):
-        self.imagMap = MAPSIZE    # todo kopiruje tohle? a zkopiruj i pocet splnenych cihel
+        self.imagMap = copy.deepcopy(self.mapaObjekt)
 
     def doImaginaryAction(self, action):
-        self.doAction(self.imagMap, action)
+        return self.doAction(self.imagMap, action)
 
     def step(self, action):
         self.moves += 1
-        map, reward, done = self.doAction(self.map3D, action)
-        return map,reward, self.moves >= MAX_MOVES or done
+        map, reward, done = self.doAction(self.mapaObjekt, action)
+        return map,reward, self.moves >= self.MAX_MOVES or done
 
     def doAction(self, map, action03): # returns new map and a reward
 
         action = actions[action03] # maps action from 0-3 to (+-1,+-1)
 
-        newPos = self.playerPos[0] + action[0], self.playerPos[1] + action[1]
+        newPos = map.playerPos[0] + action[0], map.playerPos[1] + action[1]
         movedbrick = False
         reward = -0.01  # negativni odmena za krok
 
@@ -143,34 +96,29 @@ class Sokoban:
                 map[1][newPos[0]][newPos[1]] = 0
 
                 # a udelam krok
-                map[0][self.playerPos[0]][self.playerPos[1]] = 0
+                map[0][map.playerPos[0]][map.playerPos[1]] = 0
                 map[0][newPos[0]][newPos[1]] = 1
                 movedbrick = True
 
-                self.playerPos[0] += action[0]
-                self.playerPos[1] += action[1]
+                map.playerPos = newPos
 
         elif map[3][newPos[0]][newPos[1]]==0: # pokud tam neni zed, udelam krok
-            map[0][self.playerPos[0]][self.playerPos[1]] = 0
+            map[0][map.playerPos[0]][map.playerPos[1]] = 0
             map[0][newPos[0]][newPos[1]] = 1
 
-            self.playerPos[0] += action[0]
-            self.playerPos[1] += action[1]
-
-        else:
-            reward = -0.01  # negativni odmena za krok do zdi
+            map.playerPos = newPos
 
         done = False
 
         if movedbrick:
             if map[2][newPos[0]][newPos[1]]: # posunul jsem z cile
                 reward += -0.1
-                self.nrFinished -= 1
+                map.nrFinished -= 1
             if map[2][newBrickPos[0]][newBrickPos[1]]: # posunul jsem na cil
                 reward += 0.1
-                self.nrFinished += 1
-                if self.nrCilu == self.nrFinished:
-                    reward += 1
+                map.nrFinished += 1
+                if map.nrCilu == map.nrFinished:
+                    reward += 0.9
                     done = True
 
-        return map, reward, done
+        return map.map3D, reward, done
