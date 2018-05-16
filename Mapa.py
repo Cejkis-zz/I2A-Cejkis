@@ -15,7 +15,7 @@ class Mapa:
         self.nrFinished = 0
 
         for i in range(len(mapa2)):
-            for j in range(len(mapa2[0])):
+            for j in range(len(mapa2[0])-1):
                 if mapa2[i][j] == "#":  # zed
                     mapa[3][i][j] = 1
                 elif mapa2[i][j] == "$":  # kamen

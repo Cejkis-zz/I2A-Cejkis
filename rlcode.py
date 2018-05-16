@@ -31,8 +31,8 @@ def build_model(state_size, action_size, network):
                     data_format='channels_first')(input)
     model = Conv2D(filters= network[1], kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
                    data_format='channels_first')(model)
-    model = Conv2D(filters=network[1], kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
-                   data_format='channels_first')(model)
+    #model = Conv2D(filters=network[1], kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
+    #               data_format='channels_first')(model)
     conv = Flatten()(model)
     fc = Dense(network[2], activation='relu')(conv)
     policy = Dense(action_size, activation='softmax')(fc)
@@ -301,10 +301,8 @@ class Agent(threading.Thread):
 
         policy = self.local_actor.predict(history)[0]
 
-        if episode < 10000:
-            action_index = random.randint(0, 3)
-        else:
-            action_index = np.random.choice(self.action_size, 1, p=policy)[0]
+
+        action_index = np.random.choice(self.action_size, 1, p=policy)[0]
         return action_index, policy
 
     # save <s, a ,r> of each step
@@ -321,12 +319,12 @@ if __name__ == "__main__":
     network = [32, 32, 256] # nr of filters, nr of filters, size of FC layer
     EPISODES = 700000
 
-    r_lastScore = 0
-    episode = 0
+    r_lastScore = 0.912
+    episode = 110500
     weights = ""
 
     # to load weights
-    #weights = "weights" + str(network[0]) + str(network[1]) + str(network[2]) + "/" + str(episode) + " " + str(r_lastScore)
+    weights = "weights" + str(network[0]) + str(network[1]) + str(network[2]) + "/" + str(episode) + " " + str(r_lastScore)
 
-    global_agent = A3CAgent(4e-5, 4e-5, 0.99, 0.99, 1e-7, 1e-7, network) # LR, LR, rho, rho, epsilon, epsilon
+    global_agent = A3CAgent(2e-5, 2e-5, 0.99, 0.99, 1e-7, 1e-7, network) # LR, LR, rho, rho, epsilon, epsilon
     global_agent.train()

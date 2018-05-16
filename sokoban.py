@@ -6,7 +6,8 @@ import random
 from Mapa import Mapa
 
 sizes = [111,121,122,1229,1239, 222]
-STATE_SIZE = (4, 8, 8)
+STATE_SIZE = (4, 8, 5)
+MAPSIZE = [363]
 
 def decideParameters(MAPSIZE = 1239):
     STATE_SIZE = (4, 8, 5)
@@ -34,6 +35,11 @@ def decideParameters(MAPSIZE = 1239):
         MAX_MOVES = 120
         MAPS = 640000
 
+    if MAPSIZE == 363:
+        STATE_SIZE = (4, 8, 5)
+        MAX_MOVES = 120
+        MAPS = 640000
+
     return STATE_SIZE,MAX_MOVES,MAPS
 
 actions = ((-1,0),(1,0),(0,-1),(0,1))
@@ -41,37 +47,35 @@ actions = ((-1,0),(1,0),(0,-1),(0,1))
 class Sokoban:
 
     def __init__(self):
+        global MAPSIZE
         self.small = True
+        self.it = 0
+        self.STATE_SIZE, self.MAX_MOVES, self.MAPS = decideParameters(MAPSIZE[self.it])
+
+        f = open("./levels/" + str(MAPSIZE[self.it]))
+        self.allmaps = f.readlines()
+
+        f.close()
+
+        self.nrofmaps = len(self.allmaps) # todo check if module 8 == 0
+
         self.reset()
 
     def reset(self):
+        global MAPSIZE
         self.moves = 0
-        
-        if self.small:
-            self.small = False
-            MAPSIZE = 222
-        else:
-            self.small = True
-            MAPSIZE = 222
-            
-        self.STATE_SIZE, self.MAX_MOVES, self.MAPS = decideParameters(MAPSIZE)
-        
-        mapNr = random.randint(0, self.MAPS-1)
-        #print(mapNr)
 
-        with open("/home/cejkis/SokoGen/sokohard/levels" + str(MAPSIZE) + "/output" + str(mapNr) + ".sok") as f:
-            mapa = f.readlines()
+        if len(MAPSIZE) > 1:
+            self.it = (self.it + 1) % len(MAPSIZE)
+            self.STATE_SIZE, self.MAX_MOVES, self.MAPS = decideParameters(MAPSIZE[self.it])
 
-            map2D = []
-            for i in mapa:
-                #print(i, end="")
-                map2D.append(i[:len(i) - 1])
-            #print()
+        mapNr = random.randint(0, self.nrofmaps / 8 - 1)
+
+        map2D = self.allmaps[mapNr * 8:(mapNr + 1) * 8]
 
         self.mapaObjekt = Mapa(map2D, STATE_SIZE[1], STATE_SIZE[2])
 
         return self.mapaObjekt.map3D
-
 
     def newImagination(self):
         self.imagMap = copy.deepcopy(self.mapaObjekt)
@@ -106,8 +110,6 @@ class Sokoban:
                 movedbrick = True
 
                 map.playerPos = newPos
-
-                reward += 0.01
 
         elif map[3][newPos[0]][newPos[1]]==0: # pokud tam neni zed, udelam krok
             map[0][map.playerPos[0]][map.playerPos[1]] = 0
