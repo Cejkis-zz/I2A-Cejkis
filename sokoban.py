@@ -5,8 +5,8 @@ import numpy as np
 import random
 from Mapa import Mapa
 
-sizes = [111,121,122,1229,1239]
-STATE_SIZE = (4, 8, 5)
+sizes = [111,121,122,1229,1239, 222]
+STATE_SIZE = (4, 8, 8)
 
 def decideParameters(MAPSIZE = 1239):
     STATE_SIZE = (4, 8, 5)
@@ -29,6 +29,11 @@ def decideParameters(MAPSIZE = 1239):
         MAX_MOVES = 50
         MAPS = 100000
 
+    if MAPSIZE == 222:
+        STATE_SIZE = (4, 8, 8)
+        MAX_MOVES = 120
+        MAPS = 640000
+
     return STATE_SIZE,MAX_MOVES,MAPS
 
 actions = ((-1,0),(1,0),(0,-1),(0,1))
@@ -44,10 +49,10 @@ class Sokoban:
         
         if self.small:
             self.small = False
-            MAPSIZE = 111
+            MAPSIZE = 222
         else:
             self.small = True
-            MAPSIZE = 111
+            MAPSIZE = 222
             
         self.STATE_SIZE, self.MAX_MOVES, self.MAPS = decideParameters(MAPSIZE)
         
@@ -63,7 +68,7 @@ class Sokoban:
                 map2D.append(i[:len(i) - 1])
             #print()
 
-        self.mapaObjekt = Mapa(map2D, 8, 5)
+        self.mapaObjekt = Mapa(map2D, STATE_SIZE[1], STATE_SIZE[2])
 
         return self.mapaObjekt.map3D
 
@@ -102,6 +107,8 @@ class Sokoban:
 
                 map.playerPos = newPos
 
+                reward += 0.01
+
         elif map[3][newPos[0]][newPos[1]]==0: # pokud tam neni zed, udelam krok
             map[0][map.playerPos[0]][map.playerPos[1]] = 0
             map[0][newPos[0]][newPos[1]] = 1
@@ -118,7 +125,7 @@ class Sokoban:
                 reward += 0.1
                 map.nrFinished += 1
                 if map.nrCilu == map.nrFinished:
-                    reward += 0.9
+                    reward += 1
                     done = True
 
         return map.map3D, reward, done

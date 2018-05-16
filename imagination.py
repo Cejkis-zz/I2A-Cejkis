@@ -1,7 +1,6 @@
+import random
 import time
 import threading
-import random
-
 import numpy as np
 import tensorflow as tf
 from keras.models import Model
@@ -21,17 +20,16 @@ r_sum = 0
 r_done = 0
 r_done2 = 0
 
+
 # approximate policy and value using Neural Network
 # actor -> state is input and probability of each action is output of network
 # critic -> state is input and value of state is output of network
 # actor and critic network share first hidden layer
 def build_model(state_size, action_size, network):
     input = Input(shape=state_size)
-    model = Conv2D(filters= network[0], kernel_size=(4, 4), strides=(2,2), activation='relu', padding='same',
+    model = Conv2D(filters= network[0], kernel_size=(4,4), strides=(2,2), activation='relu', padding='same',
                     data_format='channels_first')(input)
     model = Conv2D(filters= network[1], kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
-                   data_format='channels_first')(model)
-    model = Conv2D(filters=network[1], kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
                    data_format='channels_first')(model)
     conv = Flatten()(model)
     fc = Dense(network[2], activation='relu')(conv)
@@ -103,6 +101,7 @@ class A3CAgent:
         while episode < EPISODES:
             time.sleep(3)
             #self.save_model("./save_model/breakout_a3c")
+
 
     # make loss function for Policy Gradient
     # [log(action probability) * advantages] will be input for the back prop
@@ -188,7 +187,7 @@ class Agent(threading.Thread):
         self.avg_loss = 0
 
         # t_max -> max batch size for training
-        self.t_max = 5
+        self.t_max = 20
         self.t = 0
 
     # Thread interactive with environment
@@ -211,17 +210,60 @@ class Agent(threading.Thread):
             s_ = env.reset()
 
             while not done:
-                self.t += 1
 
                 s = np.float32([s_])
-                action, policy = self.get_action(s)
+
+                future_values = [0,0,0,0]
+                states = np.zeros((4,4,8,5))
+
+                for i in [0,1,2,3]:
+
+                    env.newImagination()
+
+                    im_, r, d = env.doImaginaryAction(i)
+                    future_values[i] += r
+                    im = np.float32([im_])
+
+                    if not d:
+                        for j in range(3):
+
+                            action, policy = self.get_action(np.float32(im))
+
+                            im_, r, d = env.doImaginaryAction(action)
+
+                            future_values[i] += r
+
+                            im = np.float32([im_])
+
+                            if d:
+                                break
+
+                    states[i] = im_
+
+                    #print(future_values)
+
+                values = self.critic.predict(states)
+                values = np.reshape(values, len(values))
+                future_values += values
+
+                min = np.min(future_values)
+                future_values = [x - min + 0.0001 for x in future_values]
+
+                sum = np.sum(future_values)
+                future_values /= sum
+
+                #print(str(min) + " " + str(sum) + " " + str(future_values))
+                #action = np.argmax(future_values)
+
+                action = np.random.choice(self.action_size, p=future_values)
+
+                #action, policy = self.get_action(s)
 
                 s_, reward, done = env.step(action)
 
                 score += reward
-                reward = np.clip(reward, -1., 1.) # not necessary
+                reward = np.clip(reward, -1., 1.) # todo
 
-                # save the sample <s, a, r, s'> to the replay memory
                 self.memory(s, action, reward)
 
                 if self.t >= self.t_max or done:
@@ -230,7 +272,7 @@ class Agent(threading.Thread):
                     self.t = 0
 
                 if done:
-                    with r_lock:  # store score, print average, save weights
+                    with r_lock:  # můj kód
                         episode += 1
 
                         r_sum += score
@@ -241,25 +283,20 @@ class Agent(threading.Thread):
                             else:
                                 r_done2 += 1
 
-                        if episode % 100 == 0:
+                        if episode % 500 == 0:
 
-                            avg_done = round(r_done / 50.0, 3)
-                            avg_done2 = round(r_done2 / 50.0, 3)
+                            avg_done = round(r_done / 250.0, 3)
+                            avg_done2 = round(r_done2 / 250.0, 3)
 
                             print(str(datetime.datetime.now()) + " " + str(episode) +
-                                  " %.3f" % round(r_sum / 100.0, 3) +
+                                  " %.3f" % round(r_sum / 500.0, 3) +
                                   " %.3f" % avg_done + " %.3f" % avg_done2)
 
                             r_sum = 0
                             r_done = 0
                             r_done2 = 0
 
-                            global r_lastScore
-                            if r_lastScore <= avg_done2:
-                                r_lastScore = avg_done2
-                                self.a3c.save_model("weights" + str(network[0]) + str(network[1]) + str(network[2]) + "/"
-                                                    + str(episode) + " " + str(avg_done2))
-                    if small: # swapping map sizes
+                    if small:
                         small = False
                     else:
                         small = True
@@ -301,32 +338,28 @@ class Agent(threading.Thread):
 
         policy = self.local_actor.predict(history)[0]
 
-        if episode < 10000:
-            action_index = random.randint(0, 3)
-        else:
-            action_index = np.random.choice(self.action_size, 1, p=policy)[0]
+        action_index = np.random.choice(self.action_size, 1, p=policy)[0]
         return action_index, policy
 
     # save <s, a ,r> of each step
     # this is used for calculating discounted rewards
-    def memory(self, state, action, reward):
-        self.states.append(state)
+    def memory(self, history, action, reward):
+        self.states.append(history)
         act = np.zeros(self.action_size)
-        act[action] = 1 # vektor 0010
+        act[action] = 1
         self.actions.append(act)
         self.rewards.append(reward)
 
+
 if __name__ == "__main__":
 
-    network = [32, 32, 256] # nr of filters, nr of filters, size of FC layer
+    network = [32,32,256]
     EPISODES = 700000
 
-    r_lastScore = 0
+    r_lastScore = 0.0
     episode = 0
     weights = ""
-
-    # to load weights
     #weights = "weights" + str(network[0]) + str(network[1]) + str(network[2]) + "/" + str(episode) + " " + str(r_lastScore)
 
-    global_agent = A3CAgent(4e-5, 4e-5, 0.99, 0.99, 1e-7, 1e-7, network) # LR, LR, rho, rho, epsilon, epsilon
+    global_agent = A3CAgent(4e-5, 4e-5, 0.9, 0.9, 1e-8, 1e-8, network)
     global_agent.train()
