@@ -298,12 +298,12 @@ class Agent(threading.Thread):
 if __name__ == "__main__":
 
     EPISODES = 700000
-    network_params = [64, 64, 512]
+    network = [64, 64, 512]
     # to load weights
     r_lastScore = 0
     episode = 0
     weights = ""
     #weights = "weights" + str(network[0]) + str(network[1]) + str(network[2]) + "/" + str(episode) + " " + str(r_lastScore)
 
-    global_agent = A3CAgent(2e-5, 0.1, network_params=network_params) # LR, epsilon, nr of filters, nr of filters, size of FC layer
+    global_agent = A3CAgent(2e-5, 0.1, network_params=network) # LR, epsilon, nr of filters, nr of filters, size of FC layer
     global_agent.train()
