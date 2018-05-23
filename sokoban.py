@@ -3,7 +3,7 @@ import copy
 from numpy import zeros
 import numpy as np
 import random
-from Mapa import Mapa
+from map import Mapa
 
 sizes = [111,121,122,1229,1239, 222]
 STATE_SIZE = (4, 8, 5)
