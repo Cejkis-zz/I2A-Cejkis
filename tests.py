@@ -1,4 +1,4 @@
-
+import datetime
 import random
 import sokoban
 
@@ -21,4 +21,5 @@ while True:
         if r > 0.5:
             score += 1
 
-        print(score / step)
+        print(str(datetime.datetime.now()))
+        print(step)

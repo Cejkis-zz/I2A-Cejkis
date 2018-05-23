@@ -48,7 +48,6 @@ class Sokoban:
 
     def __init__(self):
         global MAPSIZE
-        self.small = True
         self.it = 0
         self.STATE_SIZE, self.MAX_MOVES, self.MAPS = decideParameters(MAPSIZE[self.it])
 
