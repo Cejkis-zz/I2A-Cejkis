@@ -197,7 +197,7 @@ class Agent(threading.Thread):
         if weights != "":
             self.a3c.load_model(weights)
 
-        global episode, network, r_sum, r_done, r_done2
+        global episode, network_params, r_sum, r_done, r_done2
 
         env = sokoban.Sokoban()
 
@@ -353,7 +353,7 @@ class Agent(threading.Thread):
 
 if __name__ == "__main__":
 
-    network = [32,32,256]
+    network_params = [32, 32, 256]
     EPISODES = 700000
 
     r_lastScore = 0.0
@@ -361,5 +361,5 @@ if __name__ == "__main__":
     weights = ""
     #weights = "weights" + str(network[0]) + str(network[1]) + str(network[2]) + "/" + str(episode) + " " + str(r_lastScore)
 
-    global_agent = A3CAgent(4e-5, 4e-5, 0.9, 0.9, 1e-8, 1e-8, network)
+    global_agent = A3CAgent(4e-5, 4e-5, 0.9, 0.9, 1e-8, 1e-8, network_params)
     global_agent.train()

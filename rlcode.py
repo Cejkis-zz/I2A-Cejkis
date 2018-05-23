@@ -28,11 +28,11 @@ def build_model(state_size, action_size, network):
     input = Input(shape=state_size)
     #model = Conv2D(filters= network[0], kernel_size=(4, 4), strides=(2,2), activation='relu', padding='same',
     #                 data_format='channels_first')(input)
-    #model = Conv2D(filters= network[1], kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
-    #                data_format='channels_first')(input)
+    model = Conv2D(filters= network[1], kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
+                    data_format='channels_first')(input)
     #model = Conv2D(filters=network[1], kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
     #               data_format='channels_first')(model)
-    conv = Flatten()(input)
+    conv = Flatten()(model)
     fc = Dense(network[2], activation='relu')(conv)
     policy = Dense(action_size, activation='softmax')(fc)
     value = Dense(1, activation='linear')(fc)
@@ -50,7 +50,7 @@ def build_model(state_size, action_size, network):
 
 
 class A3CAgent:
-    def __init__(self, lr, eps, network):
+    def __init__(self, lr, eps, network_params):
         # environment settings
         self.state_size = sokoban.STATE_SIZE
         self.action_size = 4
@@ -61,14 +61,14 @@ class A3CAgent:
         self.lr = lr
         self.threads = 8
 
-        self.act_eps = eps
+        self.eps = eps
 
-        self.network = network
+        self.network_params = network_params
 
-        print("lr eps" + str(lr) + " "+ str(eps) + " ")
+        print("lr eps: " + str(lr) + " "+ str(eps) + " ")
 
         # create model for actor and critic network
-        self.actor, self.critic = build_model(self.state_size, self.action_size, self.network)
+        self.actor, self.critic = build_model(self.state_size, self.action_size, self.network_params)
 
         # method for training actor and critic network
         self.optimizer = [self.actor_optimizer(), self.critic_optimizer()]
@@ -89,7 +89,7 @@ class A3CAgent:
             self.load_model(weights)
 
         agents = [Agent(self, self.action_size, self.state_size, [self.actor, self.critic], self.sess, self.optimizer,
-                        self.discount_factor, self.network) for _ in range(self.threads)]
+                        self.discount_factor, self.network_params) for _ in range(self.threads)]
 
         for agent in agents:
             time.sleep(1)
@@ -130,7 +130,7 @@ class A3CAgent:
 
         loss = K.mean(K.square(discounted_reward - value))
 
-        optimizer = RMSprop(lr=self.critic_lr, epsilon=self.crit_eps, decay=0.99)
+        optimizer = RMSprop(lr=self.lr, epsilon=self.eps, decay=0.99)
         updates = optimizer.get_updates(self.critic.trainable_weights, [], loss)
         train = K.function([self.critic.input, discounted_reward], [loss], updates=updates)
         return train
@@ -161,7 +161,7 @@ class A3CAgent:
 
 # make agents(local) and start training
 class Agent(threading.Thread):
-    def __init__(self, a3c, action_size, state_size, model, sess, optimizer, discount_factor, network):
+    def __init__(self, a3c, action_size, state_size, model, sess, optimizer, discount_factor, network_params):
         threading.Thread.__init__(self)
 
         self.action_size = action_size
@@ -174,7 +174,7 @@ class Agent(threading.Thread):
 
         self.states, self.actions, self.rewards = [],[],[]
 
-        self.local_actor, self.local_critic = build_model(self.state_size, self.action_size, network)
+        self.local_actor, self.local_critic = build_model(self.state_size, self.action_size, network_params)
 
         self.local_actor.set_weights(self.actor.get_weights())
         self.local_critic.set_weights(self.critic.get_weights())
@@ -193,7 +193,7 @@ class Agent(threading.Thread):
         if weights != "":
             self.a3c.load_model(weights)
 
-        global episode, network, r_sum, r_done, r_done2
+        global episode, network_params, r_sum, r_done, r_done2
 
         env = sokoban.Sokoban()
 
@@ -241,7 +241,7 @@ class Agent(threading.Thread):
                             global r_lastScore
                             if r_lastScore <= avg_done:
                                 r_lastScore = avg_done
-                                self.a3c.save_model("weights" + str(network[0]) + str(network[1]) + str(network[2]) + "/"
+                                self.a3c.save_model("weights" + str(network_params[0]) + str(network_params[1]) + str(network_params[2]) + "/"
                                                     + str(episode) + " " + str(avg_done))
 
 
@@ -297,15 +297,13 @@ class Agent(threading.Thread):
 
 if __name__ == "__main__":
 
-    network = [64, 64, 512] # nr of filters, nr of filters, size of FC layer
     EPISODES = 700000
-
+    network_params = [64, 64, 512]
+    # to load weights
     r_lastScore = 0
     episode = 0
     weights = ""
-
-    # to load weights
     #weights = "weights" + str(network[0]) + str(network[1]) + str(network[2]) + "/" + str(episode) + " " + str(r_lastScore)
 
-    global_agent = A3CAgent(2e-5, 0.1, network) # LR, epsilon
+    global_agent = A3CAgent(2e-5, 0.1, network_params=network_params) # LR, epsilon, nr of filters, nr of filters, size of FC layer
     global_agent.train()
