@@ -19,6 +19,7 @@ episode = 0
 r_lock = threading.Lock()
 r_sum = 0
 r_done = 0
+print_freq = 200.0
 
 # approximate policy and value using Neural Network
 # actor -> state is input and probability of each action is output of network
@@ -28,12 +29,12 @@ def build_model(state_size, action_size, network):
     input = Input(shape=state_size)
     #model = Conv2D(filters= network[0], kernel_size=(4, 4), strides=(2,2), activation='relu', padding='same',
     #                 data_format='channels_first')(input)
-    model = Conv2D(filters= network[1], kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
-                    data_format='channels_first')(input)
-    #model = Conv2D(filters=network[1], kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
-    #               data_format='channels_first')(model)
-    conv = Flatten()(model)
-    fc = Dense(network[2], activation='relu')(conv)
+    #model = Conv2D(filters= network[1], kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
+    #                data_format='channels_first')(input)
+    #input = Conv2D(filters=network[1], kernel_size=(3, 3), strides=(1, 1), activation='relu', padding='same',
+    #               data_format='channels_first')(input)
+    conv = Flatten()(input)
+    fc = Dense(network[2], activation='softmax')(conv)
     policy = Dense(action_size, activation='softmax')(fc)
     value = Dense(1, activation='linear')(fc)
 
@@ -42,9 +43,6 @@ def build_model(state_size, action_size, network):
 
     actor._make_predict_function()
     critic._make_predict_function()
-
-    # actor.summary()
-    # critic.summary()
 
     return actor, critic
 
@@ -59,7 +57,7 @@ class A3CAgent:
 
         # optimizer parameters
         self.lr = lr
-        self.threads = 8
+        self.threads = 16
 
         self.eps = eps
 
@@ -76,9 +74,6 @@ class A3CAgent:
         self.sess = tf.InteractiveSession()
         K.set_session(self.sess)
         self.sess.run(tf.global_variables_initializer())
-
-        self.summary_placeholders, self.update_ops, self.summary_op = self.setup_summary()
-        self.summary_writer = tf.summary.FileWriter('summary/breakout_a3c', self.sess.graph)
 
     def train(self):
 
@@ -115,8 +110,9 @@ class A3CAgent:
         entropy = K.sum(policy * K.log(policy + 1e-10), axis=1)
         entropy = K.sum(entropy)
 
-        loss = actor_loss + 0.005*entropy
-        optimizer = RMSprop(lr=self.lr, epsilon=self.eps, decay = 0.99)
+        loss = actor_loss + 0.01*entropy
+
+        optimizer = RMSprop(lr=self.lr, epsilon=self.eps, rho=0.99)
         updates = optimizer.get_updates(self.actor.trainable_weights, [], loss)
         train = K.function([self.actor.input, action, advantages], [loss], updates=updates)
 
@@ -130,7 +126,7 @@ class A3CAgent:
 
         loss = K.mean(K.square(discounted_reward - value))
 
-        optimizer = RMSprop(lr=self.lr, epsilon=self.eps, decay=0.99)
+        optimizer = RMSprop(lr=self.lr, epsilon=self.eps, rho=0.99)
         updates = optimizer.get_updates(self.critic.trainable_weights, [], loss)
         train = K.function([self.critic.input, discounted_reward], [loss], updates=updates)
         return train
@@ -143,21 +139,6 @@ class A3CAgent:
         self.actor.save_weights(name + "_actor.h5")
         self.critic.save_weights(name + '_critic.h5')
 
-    # make summary operators for tensorboard
-    def setup_summary(self):
-        episode_total_reward = tf.Variable(0.)
-        episode_avg_max_q = tf.Variable(0.)
-        episode_duration = tf.Variable(0.)
-
-        tf.summary.scalar('Total Reward/Episode', episode_total_reward)
-        tf.summary.scalar('Average Max Prob/Episode', episode_avg_max_q)
-        tf.summary.scalar('Duration/Episode', episode_duration)
-
-        summary_vars = [episode_total_reward, episode_avg_max_q, episode_duration]
-        summary_placeholders = [tf.placeholder(tf.float32) for _ in range(len(summary_vars))]
-        update_ops = [summary_vars[i].assign(summary_placeholders[i]) for i in range(len(summary_vars))]
-        summary_op = tf.summary.merge_all()
-        return summary_placeholders, update_ops, summary_op
 
 # make agents(local) and start training
 class Agent(threading.Thread):
@@ -183,7 +164,7 @@ class Agent(threading.Thread):
         self.avg_loss = 0
 
         # t_max -> max batch size for training
-        self.t_max = 40
+        self.t_max = 20
         self.t = 0
 
     # Thread interactive with environment
@@ -223,26 +204,25 @@ class Agent(threading.Thread):
                     self.update_localmodel()
                     self.t = 0
 
-                if done:
-                    with r_lock:  # store score, print average, save weights
-                        episode += 1
-                        r_sum += score
+            with r_lock:  # store score, print average, save weights
+                episode += 1
+                r_sum += score
 
-                        if reward > 0.5:
-                            r_done += 1
+                if reward > 0.5:
+                    r_done += 1
 
-                        if episode % 100 == 0:
-                            avg_done = round(r_done / 100.0, 3)
-                            print(str(datetime.datetime.now()) + " " + str(episode) +
-                                  " %.3f" % round(r_sum / 100.0, 3) + " %.3f" % avg_done)
-                            r_sum = 0
-                            r_done = 0
+                if episode % print_freq == 0:
+                    avg_done = round(r_done / print_freq, 3)
+                    print(str(datetime.datetime.now()) + " " + str(episode) +
+                          " %.3f" % round(r_sum / print_freq, 3) + " %.3f" % avg_done)
+                    r_sum = 0
+                    r_done = 0
 
-                            global r_lastScore
-                            if r_lastScore <= avg_done:
-                                r_lastScore = avg_done
-                                self.a3c.save_model("weights" + str(network_params[0]) + str(network_params[1]) + str(network_params[2]) + "/"
-                                                    + str(episode) + " " + str(avg_done))
+                    global r_lastScore
+                    if r_lastScore <= avg_done:
+                        r_lastScore = avg_done
+                        self.a3c.save_model("weights" + str(network_params[0]) + str(network_params[1]) + str(network_params[2]) + "/"
+                                            + str(episode) + " " + str(avg_done))
 
 
     # In Policy Gradient, Q function is not available.
@@ -270,8 +250,9 @@ class Agent(threading.Thread):
 
         advantages = discounted_rewards - values
 
-        self.optimizer[0]([states, self.actions, advantages])
-        self.optimizer[1]([states, discounted_rewards])
+        loss_a = self.optimizer[0]([states, self.actions, advantages]) # todo print losses
+        loss_b = self.optimizer[1]([states, discounted_rewards])
+
         self.states, self.actions, self.rewards = [], [], []
 
     def update_localmodel(self):
@@ -281,7 +262,6 @@ class Agent(threading.Thread):
     def get_action(self, history):
 
         policy = self.local_actor.predict(history)[0]
-
 
         action_index = np.random.choice(self.action_size, 1, p=policy)[0]
         return action_index, policy
@@ -298,9 +278,9 @@ class Agent(threading.Thread):
 if __name__ == "__main__":
 
     EPISODES = 700000
-    network_params = [64, 64, 512]
+    network_params = [64,64,512]
     # to load weights
-    r_lastScore = 0
+    r_lastScore = 0.0
     episode = 0
     weights = ""
     #weights = "weights" + str(network_params[0]) + str(network_params[1]) + str(network_params[2]) + "/" + str(episode) + " " + str(r_lastScore)

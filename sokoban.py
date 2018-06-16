@@ -5,7 +5,7 @@ import numpy as np
 import random
 from map import Mapa
 
-sizes = [111,121,122,1229,1239, 222]
+#sizes = [111,121,122,1229,1239, 222]
 STATE_SIZE = (4, 8, 5)
 MAPSIZE = [363]
 
@@ -13,34 +13,15 @@ def decideParameters(MAPSIZE = 1239):
     STATE_SIZE = (4, 8, 5)
     MAX_MOVES = 120
 
-    if MAPSIZE == 121:
-        MAPS = 160000
-
-    if MAPSIZE == 122:
-        MAPS = 75000
-
-    if MAPSIZE == 1229: # bez --changes
-        MAPS = 50000
-
-    if MAPSIZE == 1239: # bez --changes
-        MAPS = 64000
-
-    if MAPSIZE == 111:
-        STATE_SIZE = (4,5,5)
-        MAX_MOVES = 50
-        MAPS = 100000
-
-    if MAPSIZE == 222:
-        STATE_SIZE = (4, 8, 8)
-        MAX_MOVES = 120
-        MAPS = 640000
-
     if MAPSIZE == 363:
         STATE_SIZE = (4, 8, 5)
         MAX_MOVES = 120
-        MAPS = 640000
 
-    return STATE_SIZE,MAX_MOVES,MAPS
+    if MAPSIZE == 331:
+        STATE_SIZE = (4, 5, 5)
+        MAX_MOVES = 70
+
+    return STATE_SIZE,MAX_MOVES
 
 actions = ((-1,0),(1,0),(0,-1),(0,1))
 
@@ -49,14 +30,14 @@ class Sokoban:
     def __init__(self):
         global MAPSIZE
         self.it = 0
-        self.STATE_SIZE, self.MAX_MOVES, self.MAPS = decideParameters(MAPSIZE[self.it])
+        self.STATE_SIZE, self.MAX_MOVES = decideParameters(MAPSIZE[self.it])
 
         f = open("./levels/" + str(MAPSIZE[self.it]))
         self.allmaps = f.readlines()
 
         f.close()
 
-        self.nrofmaps = len(self.allmaps) # todo check if module 8 == 0
+        self.nrofmaps = len(self.allmaps) # todo check if  %8 == 0
 
         self.reset()
 
@@ -68,9 +49,10 @@ class Sokoban:
             self.it = (self.it + 1) % len(MAPSIZE)
             self.STATE_SIZE, self.MAX_MOVES, self.MAPS = decideParameters(MAPSIZE[self.it])
 
-        mapNr = random.randint(0, self.nrofmaps / 8 - 1)
-
-        map2D = self.allmaps[mapNr * 8:(mapNr + 1) * 8]
+        height = 8
+        mapNr = random.randint(0, self.nrofmaps / height - 1) #
+        #print(mapNr)
+        map2D = self.allmaps[mapNr * height:(mapNr + 1) * height]
 
         self.mapaObjekt = Mapa(map2D, STATE_SIZE[1], STATE_SIZE[2])
 

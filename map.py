@@ -45,13 +45,13 @@ class Mapa:
         self.map3D[0][self.playerPos[0]][self.playerPos[1]] = 0
 
         pos = self.playerPos
-        for i in range(20):
-            smer = actions[np.random.randint(0, 4)]
-            newpos = [pos[0] + smer[0], pos[1] + smer[1]]
-            if self.map3D[3][newpos[0]][newpos[1]] == 0 and self.map3D[1][newpos[0]][newpos[1]] == 0:
-                pos = newpos
-        self.playerPos = pos
-        self.map3D[0][self.playerPos[0]][self.playerPos[1]] = 1
+        # for i in range(20):
+        #     smer = actions[np.random.randint(0, 4)]
+        #     newpos = [pos[0] + smer[0], pos[1] + smer[1]]
+        #     if self.map3D[3][newpos[0]][newpos[1]] == 0 and self.map3D[1][newpos[0]][newpos[1]] == 0:
+        #         pos = newpos
+        # self.playerPos = pos
+        # self.map3D[0][self.playerPos[0]][self.playerPos[1]] = 1
 
 
     def __getitem__(self, item):
